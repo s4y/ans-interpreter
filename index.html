@@ -173,8 +173,9 @@ Func Fac 1 `BB
 		'+': ansMath('+', function (l, r){ return l + r; }),
 		'-': ansMath('-', function (l, r){ return l - r; }),
 		'*': ansMath('*', function (l, r){ return l * r; }),
-		'%': ansMath('%', function (l, r){ return l % r; }),
-		'^': ansMath('^', function (l, r){ return Math.pow(l, r); })
+		'/': ansMath('/', function (l, r){ return l / r; }),
+		'^': ansMath('^', function (l, r){ return Math.pow(l, r); }),
+		'%': ansMath('%', function (l, r){ return l % r; })
 	};
 	var interpreter = new Ans(env);
 
