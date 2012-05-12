@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script id="helloWorld" type="text/ans">
+
+$"Hello, World!"
+
+</script>
+<script id="fact" type="text/ans">
+
+Func Fac 1 `BB
+    If Or =_a 1  =_a 0 `B
+       Set _ _a
+       @
+    Set _ + 1 Fac - _a 1 
+    @
+
+</script>
+<script>
+	function Lexer(rules){
+		this.rules = rules;
+	}
+	Lexer.prototype.lex = function(code){
+		var i, l = this.rules.length, tokens = [], match, rule;
+		outer:
+		while (code.length) {
+			for (i = 0; i < l; i++) {
+				rule = this.rules[i];
+				if ((match = code.match(rule.expr))) {
+					code = code.substring(match[0].length);
+					if (rule.type) {
+						tokens.push({ type: rule.type, value: ('fn' in rule) ? rule.fn(match) : match[0] });
+					}
+					continue outer;
+				}
+			}
+			// No rules matched
+			throw new Error("Syntax error");
+		}
+		return tokens;
+	};
+	var lexer = new Lexer([
+		{ expr: /^\s+/, type: null },
+		{ expr: /^_[a-z]*/, type: 'variable' },
+		{ expr: /^"([^"]*)"/, type: 'list', fn: function(match){ return match[1].split(''); } },
+		{ expr: /^\d/, type: 'number', fn: function(match){ return +match[0]; } },
+		{ expr: /^[A-Z][a-z]*/, type: 'function' },
+		{ expr: /^[^A-Za-z]/, type: 'function' }
+	]);
+
+	function AnsFunction(argc, body){
+		this.argc = argc;
+		this.body = body;
+	}
+	function run(){
+		throw new Error("I am not good with Ans how did I get here?");
+	}
+
+	function NativeAnsFunction(argc, handler){
+		this.argc = argc;
+		this.handler = handler;
+	}
+	NativeAnsFunction.prototype = new AnsFunction();
+	NativeAnsFunction.prototype.run = function(args){
+		return this.handler.apply(undefined, args);
+	}
+
+	var env = {
+		'$': new NativeAnsFunction(1, function(str){
+			console.log(str.join(''));
+		})
+	}
+
+
+	var code = document.getElementById('helloWorld').firstChild.nodeValue.trim();
+	console.log(code);
+	console.log(JSON.stringify(lexer.lex(code), null, '\t'));
+
+
+</script>
+
