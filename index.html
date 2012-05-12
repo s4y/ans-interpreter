@@ -84,7 +84,7 @@ Func Fac 1 `BB
 	var lexer = new Lexer([
 		{ expr: /^\s+/, type: null },
 		{ expr: /^_[a-z]*/, type: 'variable' },
-		{ expr: /^"([^"]*)"/, type: 'list', fn: function(match){ return match[1].split(''); } },
+		{ expr: /^"([^"]*)"/, type: 'list', fn: function(match){ return match[1].split('').map(function(s){ return s.charCodeAt(0); }); } },
 		{ expr: /^\d/, type: 'number', fn: function(match){ return +match[0]; } },
 		{ expr: /^[A-Z][a-z]*/, type: 'function' },
 		{ expr: /^[^A-Za-z]/, type: 'function' }
@@ -156,7 +156,7 @@ Func Fac 1 `BB
 			if (str.type !== 'list') {
 				throw new Error('$ expected a list');
 			}
-			log('output', str.value.join(''));
+			log('output', str.value.map(function(c){ return String.fromCharCode(c); }).join(''));
 		}),
 		'+': ansMath('+', function (l, r){ return l + r; }),
 		'-': ansMath('-', function (l, r){ return l - r; }),
