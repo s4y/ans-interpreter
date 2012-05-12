@@ -90,9 +90,19 @@ Func Fac 1 `BB
 		{ expr: /^[^A-Za-z]/, type: 'function' }
 	]);
 
-	function AnsFunction(argc, body){ this.argc = argc; this.body = body; }
-	AnsFunction.prototype.run = function(){
-		throw new Error("I am not good with computer how did I get here?");
+	function AnsBlock(body, env){ this.value = this; this.body = body; this.env = env; }
+	AnsBlock.prototype.type = 'block';
+	AnsBlock.prototype.toString = function(){ return '`' + this.body; };
+
+	function AnsFunction(argc, code){ this.argc = argc; this.code = code; }
+	AnsFunction.prototype.run = function(args, caller){
+		var env = Object.create(this.code.env);
+		env._ = null;
+		args.forEach(function(arg, i){
+			env['_' + String.fromCharCode('a'.charCodeAt(0) + i)] = arg;
+		});
+		caller.runInEnvironment(this.code.body.slice(), env);
+		return env._;
 	}
 
 	function NativeAnsFunction(argc, handler){
@@ -130,7 +140,7 @@ Func Fac 1 `BB
 					}
 					args.push(this.runInEnvironment(expressions, env));
 				}
-				ret = fn.run(args);
+				ret = fn.run(args, this);
 			}
 		} else if (expr.type in {'list': true, 'number': true }) {
 			ret = expr;
@@ -149,8 +159,27 @@ Func Fac 1 `BB
 		'S': function(exprs, env){
 			if (exprs.length < 2) { throw new Error('S expected two arguments'); }
 			var varToken = exprs.shift();
-			if (varToken.type !== 'variable') { throw new Error('S expected a variable'); }
+			if (varToken.type !== 'variable') { throw new Error('S expected a variable name'); }
 			env[varToken.value] = this.runInEnvironment(exprs, env);
+		},
+		'`': function(exprs, env){
+			var body = [], expr;
+			if (! exprs.length) { throw new Error('` expects an argument'); }
+			while ((expr = exprs.shift()) && (expr.type !== 'function' || expr.value != '@')){
+				body.push(expr);
+			}
+			return new AnsBlock(body, env);
+		},
+		'F': function(exprs, env){
+			var name, argc, code;
+			if (
+				(name = exprs.shift()).type !== 'function' ||
+				(argc = this.runInEnvironment(exprs, env)).type !== 'number' ||
+				(code = this.runInEnvironment(exprs, env)).type !== 'block'
+			) {
+				throw new Error('Func expected a name, count of arguments, and code');
+			}
+			env[name.value] = new AnsFunction(argc.value, code);
 		}
 	};
 
@@ -165,17 +194,30 @@ Func Fac 1 `BB
 	}
 	var env = {
 		'$': new NativeAnsFunction(1, function(str){
-			if (str.type !== 'list') {
+			var r;
+			if (str.type === 'number') {
+				r = String.fromCharCode(r);
+			} else if (str.type === 'list') {
+				r = str.value.map(function(c){ return String.fromCharCode(c); }).join('');
+			} else {
 				throw new Error('$ expected a list');
 			}
-			log('output', str.value.map(function(c){ return String.fromCharCode(c); }).join(''));
+			log('output', r);
+		}),
+		'#': new NativeAnsFunction(1, function(v){
+			if (v.type === 'number') {
+				log('output', v.value);
+			} else if (v.type === 'list') {
+				log('output', v.value.join(''));
+			}
 		}),
 		'+': ansMath('+', function (l, r){ return l + r; }),
 		'-': ansMath('-', function (l, r){ return l - r; }),
 		'*': ansMath('*', function (l, r){ return l * r; }),
 		'/': ansMath('/', function (l, r){ return l / r; }),
 		'^': ansMath('^', function (l, r){ return Math.pow(l, r); }),
-		'%': ansMath('%', function (l, r){ return l % r; })
+		'%': ansMath('%', function (l, r){ return l % r; }),
+		'B': new NativeAnsFunction(2, function(l, r){ return r; })
 	};
 	var interpreter = new Ans(env);
 
