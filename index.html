@@ -116,18 +116,22 @@ Func Fac 1 `BB
 	Ans.prototype.runInEnvironment = function(expressions, env){
 		var expr = expressions.shift(), args, fn, ret, argsLeft;
 		if (expr.type === 'function'){
-			fn = env[expr.value];
-			if ( ! fn) {
-				throw new Error("No function named " + expr.value);
-			}
-			args = [];
-			for (argsLeft = fn.argc; argsLeft > 0; argsLeft--){
-				if ( ! expressions.length) {
-					throw new Error("Not enough arguments to " + expr.value);
+			if (expr.value in Ans.specialForms) {
+				ret = Ans.specialForms[expr.value].call(this, expressions, env);
+			} else {
+				fn = env[expr.value];
+				if ( ! fn) {
+					throw new Error("No function named " + expr.value);
 				}
-				args.push(this.runInEnvironment(expressions, env));
+				args = [];
+				for (argsLeft = fn.argc; argsLeft > 0; argsLeft--){
+					if ( ! expressions.length) {
+						throw new Error("Not enough arguments to " + expr.value);
+					}
+					args.push(this.runInEnvironment(expressions, env));
+				}
+				ret = fn.run(args);
 			}
-			ret = fn.run(args);
 		} else if (expr.type in {'list': true, 'number': true }) {
 			ret = expr;
 		} else if (expr.type === 'variable') {
@@ -140,6 +144,14 @@ Func Fac 1 `BB
 			throw new Error("No idea what to do with a value of type " + expr.type);
 		}
 		return ret;
+	};
+	Ans.specialForms = {
+		'S': function(exprs, env){
+			if (exprs.length < 2) { throw new Error('S expected two arguments'); }
+			var varToken = exprs.shift();
+			if (varToken.type !== 'variable') { throw new Error('S expected a variable'); }
+			env[varToken.value] = this.runInEnvironment(exprs, env);
+		}
 	};
 
 
