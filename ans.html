@@ -46,12 +46,9 @@ Func Fac 1 `BB
 		{ expr: /^[^A-Za-z]/, type: 'function' }
 	]);
 
-	function AnsFunction(argc, body){
-		this.argc = argc;
-		this.body = body;
-	}
-	function run(){
-		throw new Error("I am not good with Ans how did I get here?");
+	function AnsFunction(argc, body){ this.argc = argc; this.body = body; }
+	AnsFunction.prototype.run = function(){
+		throw new Error("I am not good with computer how did I get here?");
 	}
 
 	function NativeAnsFunction(argc, handler){
@@ -63,17 +60,45 @@ Func Fac 1 `BB
 		return this.handler.apply(undefined, args);
 	}
 
+	function Ans(globalEnv){ this.globalEnv = globalEnv; }
+	Ans.prototype.run = function(instructions){
+		this.runInEnvironment(instructions, this.globalEnv);
+	};
+	Ans.prototype.runInEnvironment = function(instructions, env){
+		var instructions = instructions.slice(), next, args;
+		while (instructions.length) {
+			next = instructions.shift();
+			if (next.type === 'function'){
+				fn = env[next.value];
+				if ( ! fn) {
+					throw new Error("No function named " + next.value);
+				}
+				args = instructions.slice(0, fn.argc);
+				if (args.length < fn.argc) {
+					throw new Error("Not enough arguments to " + next.value);
+				}
+				return fn.run(args);
+			}
+		}
+	};
+
 	var env = {
 		'$': new NativeAnsFunction(1, function(str){
-			console.log(str.join(''));
+			if (str.type !== 'list') {
+				throw new Error('$ expected a list');
+			}
+			console.log(str.value.join(''));
 		})
-	}
+	};
+	var interp = new Ans(env);
 
 
 	var code = document.getElementById('helloWorld').firstChild.nodeValue.trim();
 	console.log(code);
-	console.log(JSON.stringify(lexer.lex(code), null, '\t'));
+	var tokens = lexer.lex(code);
+	console.log(JSON.stringify(tokens, null, '\t'));
 
+	interp.run(tokens);
 
 </script>
 
