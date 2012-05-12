@@ -1,4 +1,46 @@
 <!DOCTYPE html>
+<style>
+	html, body{
+		height: 100%;
+	}
+	html {
+		font: 400 18px "Courier New", "Courier", "Monaco", monospace;
+	}
+	body {
+		margin: 0;
+	}
+	#results {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	#results>li, #input{
+		padding: 0.5em 0.7em;
+		margin: 0;
+	}
+	#results>li{
+		border-bottom: 1px solid #777;
+	}
+	#results>li.error {
+		color: red;
+	}
+	#results>li.input {
+		color: #08F;
+	}
+	#results>li.output {
+		font-weight: bold;
+	}
+	#input {
+		border: none;
+		font: inherit;
+		background: none;
+		box-sizing: border-box;
+		width: 100%;
+		outline: none;
+	}
+</style>
+<ul id="results"></ul>
+<input id="input" autofocus>
 <script id="helloWorld" type="text/ans">
 
 $"Hello, World!"
@@ -99,18 +141,84 @@ Func Fac 1 `BB
 			if (str.type !== 'list') {
 				throw new Error('$ expected a list');
 			}
-			console.log(str.value.join(''));
+			log('output', str.value.join(''));
 		})
 	};
-	var interp = new Ans(env);
+	var interpreter = new Ans(env);
 
+	// This function borrowed from Zelig:
+	// https://github.com/Kevin-P-Kerr/Zelig
+	function keepHistory(input, storageKey) {
+		var permanentHistory = storageKey in sessionStorage ? JSON.parse(sessionStorage[storageKey]) : [],
+			history = permanentHistory.slice(),
+			typed = '',
+			i = history.length;
+		input.addEventListener('keydown', function(e){
+			switch (e.keyCode) {
+			case 13: // Return
+				if (input.value){
+					i = permanentHistory.push(input.value);
+					sessionStorage[storageKey] = JSON.stringify(permanentHistory);
+					history = permanentHistory.slice();
+					typed = '';
+				}
+				e.preventDefault();
+				break;
+			case 38: // Up
+				if (i > 0 && history.length){
+					if (i === history.length) {
+						typed = input.value;
+					} else {
+						history[i] = input.value;
+					}
+					input.value = history[--i];
+				}
+				e.preventDefault();
+				break;
+			case 40: // Down
+				if (i < history.length - 1) {
+					history[i] = input.value;
+					input.value = history[++i];
+				} else if (i === history.length - 1) {
+					i++;
+					input.value = typed;
+				}
+				e.preventDefault();
+				break;
+			}
+		}, false);
+	}
 
-	var code = document.getElementById('helloWorld').firstChild.nodeValue.trim();
-	console.log(code);
-	var tokens = lexer.lex(code);
-	console.log(JSON.stringify(tokens, null, '\t'));
+	var input = document.getElementById('input');
+	var results = document.getElementById('results');
 
-	interp.run(tokens);
+	function log(className, message){
+		var result = document.createElement('li');
+		result.className = className;
+		result.appendChild(document.createTextNode(message));
+		results.appendChild(result);
+	}
 
+	keepHistory(input, 'repl-history');
+	input.addEventListener('keydown', function(e){
+		var code, ret;
+		if (e.keyCode === 13 && input.value) {
+			code = input.value;
+			log('input', code);
+			input.value = '';
+			try {
+				if ((ret = interpreter.run(lexer.lex(code)))) {
+					log('return', ret.value);
+				}
+			} catch (e) {
+				log('error', e.message);
+			}
+			window.scrollTo(window.scrollX, document.documentElement.scrollHeight - document.documentElement.clientHeight);
+		}
+	}, false);
+	document.body.addEventListener('click', function(e){
+		if (e.target === document.body) {
+			input.focus();
+		}
+	}, false);
 </script>
-
