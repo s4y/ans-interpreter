@@ -106,19 +106,26 @@ Func Fac 1 `BB
 
 	function Ans(globalEnv){ this.globalEnv = globalEnv; }
 	Ans.prototype.run = function(expressions){
-		return this.runInEnvironment(expressions, this.globalEnv);
+		var ret = this.runInEnvironment(expressions, this.globalEnv);
+		if (expressions.length) {
+			throw new Error("Unexpected value \"" + expressions[0].value + '"');
+		}
+		return ret;
 	};
 	// Warning: consumes `expressions`
 	Ans.prototype.runInEnvironment = function(expressions, env){
-		var expr = expressions.shift(), args, ret = null;
+		var expr = expressions.shift(), args, fn, ret, argsLeft;
 		if (expr.type === 'function'){
 			fn = env[expr.value];
 			if ( ! fn) {
 				throw new Error("No function named " + expr.value);
 			}
-			args = expressions.splice(0, fn.argc);
-			if (args.length < fn.argc) {
-				throw new Error("Not enough arguments to " + expr.value);
+			args = [];
+			for (argsLeft = fn.argc; argsLeft > 0; argsLeft--){
+				if ( ! expressions.length) {
+					throw new Error("Not enough arguments to " + expr.value);
+				}
+				args.push(this.runInEnvironment(expressions, env));
 			}
 			ret = fn.run(args);
 		} else if (expr.type in {'list': true, 'number': true }) {
@@ -131,9 +138,6 @@ Func Fac 1 `BB
 			}
 		} else {
 			throw new Error("No idea what to do with a value of type " + expr.type);
-		}
-		if (expressions.length) {
-			throw new Error("Unexpected value");
 		}
 		return ret;
 	};
