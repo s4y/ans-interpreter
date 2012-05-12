@@ -142,13 +142,27 @@ Func Fac 1 `BB
 		return ret;
 	};
 
+
+	function ansMath(name, fn){
+		return new NativeAnsFunction(2, function(l, r){
+			if (l.type !== 'number' || r.type !== 'number') {
+				throw new Error(name + ' expected numbers');
+			}
+			return { type: 'number', value: fn(l.value, r.value) };
+		});
+	}
 	var env = {
 		'$': new NativeAnsFunction(1, function(str){
 			if (str.type !== 'list') {
 				throw new Error('$ expected a list');
 			}
 			log('output', str.value.join(''));
-		})
+		}),
+		'+': ansMath('+', function (l, r){ return l + r; }),
+		'-': ansMath('-', function (l, r){ return l - r; }),
+		'*': ansMath('*', function (l, r){ return l * r; }),
+		'%': ansMath('%', function (l, r){ return l % r; }),
+		'^': ansMath('^', function (l, r){ return Math.pow(l, r); })
 	};
 	var interpreter = new Ans(env);
 
