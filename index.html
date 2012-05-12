@@ -59,6 +59,12 @@ Func Fac 1 `BB
 <script>
 	"use strict";
 
+	function mirror(thing, keys){
+		keys.forEach(function(k){
+			thing[k[1]] = thing[k[0]];
+		});
+	}
+
 	function Lexer(rules){
 		this.rules = rules;
 	}
@@ -110,8 +116,8 @@ Func Fac 1 `BB
 		this.handler = handler;
 	}
 	NativeAnsFunction.prototype = new AnsFunction();
-	NativeAnsFunction.prototype.run = function(args){
-		return this.handler.apply(undefined, args);
+	NativeAnsFunction.prototype.run = function(args, caller){
+		return this.handler.apply(caller, args);
 	}
 
 	function Ans(globalEnv){ this.globalEnv = globalEnv; }
@@ -163,9 +169,19 @@ Func Fac 1 `BB
 			env[varToken.value] = this.runInEnvironment(exprs, env);
 		},
 		'`': function(exprs, env){
-			var body = [], expr;
+			var body = [], expr, open = 1;
 			if (! exprs.length) { throw new Error('` expects an argument'); }
-			while ((expr = exprs.shift()) && (expr.type !== 'function' || expr.value != '@')){
+			while ((expr = exprs.shift())){
+				if (expr.type === 'function') {
+					if(expr.value === '`') {
+						open++;
+					} else if (expr.value === '@'){
+						open--;
+						if (open === 0) {
+							break;
+						}
+					}
+				}
 				body.push(expr);
 			}
 			return new AnsBlock(body, env);
@@ -173,15 +189,17 @@ Func Fac 1 `BB
 		'F': function(exprs, env){
 			var name, argc, code;
 			if (
+				! exprs.length ||
 				(name = exprs.shift()).type !== 'function' ||
 				(argc = this.runInEnvironment(exprs, env)).type !== 'number' ||
 				(code = this.runInEnvironment(exprs, env)).type !== 'block'
 			) {
-				throw new Error('Func expected a name, count of arguments, and code');
+				throw new Error('Func expects a name, count of arguments, and code');
 			}
 			env[name.value] = new AnsFunction(argc.value, code);
 		}
 	};
+	mirror(Ans.specialForms, [['F', 'Func'], ['S', 'Set']]);
 
 
 	function ansMath(name, fn){
@@ -217,8 +235,26 @@ Func Fac 1 `BB
 		'/': ansMath('/', function (l, r){ return l / r; }),
 		'^': ansMath('^', function (l, r){ return Math.pow(l, r); }),
 		'%': ansMath('%', function (l, r){ return l % r; }),
-		'B': new NativeAnsFunction(2, function(l, r){ return r; })
+		'<': ansMath('<', function (l, r){ return l < r ? 1 : 0; }),
+		'>': ansMath('>', function (l, r){ return l > r ? 1 : 0; }),
+		'=': new NativeAnsFunction(2, function(l, r){ return { type: 'number', value: (l === r || (l.type === r.type && l.value === r.value)) ? 1 : 0 }; }),
+		'B': new NativeAnsFunction(2, function(l, r){ return r; }),
+		'I': new NativeAnsFunction(2, function(condition, code){
+			if (condition && condition.value){
+				if (code.type !== 'block'){
+					throw new Error('If expected a code block');
+				}
+				return this.runInEnvironment(code.body.slice(), code.env);
+			} else {
+				return null;
+			}
+		}),
+		'O': new NativeAnsFunction(2, function(a, b){
+			return a.value ? a : b;
+		})
 	};
+	mirror(env, [['O', 'Or'], ['I', 'If']]);
+
 	var interpreter = new Ans(env);
 
 	// This function borrowed from Zelig:
