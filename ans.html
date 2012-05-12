@@ -20,7 +20,7 @@ Func Fac 1 `BB
 	}
 	Lexer.prototype.lex = function(code){
 		var i, l = this.rules.length, tokens = [], match, rule;
-		outer:
+		token:
 		while (code.length) {
 			for (i = 0; i < l; i++) {
 				rule = this.rules[i];
@@ -29,7 +29,7 @@ Func Fac 1 `BB
 					if (rule.type) {
 						tokens.push({ type: rule.type, value: ('fn' in rule) ? rule.fn(match) : match[0] });
 					}
-					continue outer;
+					continue token;
 				}
 			}
 			// No rules matched
